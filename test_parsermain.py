@@ -107,12 +107,12 @@ class TestSaveToCSV:
                     assert mock_file.call_args[0][0] == 'elements_777_1.csv'
                     assert mock_writer.writerow.call_count == 3 
 
-def test_save_csv_error_mock():
-    test_data = [[111, 500, "Товар", "5.0"]]
-    with patch('builtins.open') as mock_open_error:
-        mock_open_error.side_effect = PermissionError("Нет прав на запись")
-        try:
-            save_to_csv(test_data, 3, 999)
-            assert False
-        except PermissionError:
-            assert True
+    def test_save_csv_error_mock(self):
+        test_data = [[111, 500, "Товар", "5.0"]]
+        with patch('builtins.open') as mock_open_error:
+            mock_open_error.side_effect = PermissionError("Нет прав на запись")
+            try:
+                save_to_csv(test_data, 3, 999)
+                assert False
+            except PermissionError:
+                assert True

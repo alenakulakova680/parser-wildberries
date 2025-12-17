@@ -42,47 +42,6 @@ def create_keyboards():
         return None
 
 
-class Register(StatesGroup):
-    """
-    Класс состояний для машины состояний (FSM) бота.
-
-    Attributes:
-        name (State): Состояние ввода названия категории товаров.
-        time (State): Состояние ввода интервала парсинга в минутах.
-        article (State): Состояние ввода артикула товара для отслеживания истории цен.
-    """
-    name = State()
-    time = State()
-    article = State()
-
-
-def save_to_csv(data: list, counter: int, user_id: int):
-    """
-    Сохраняет данные парсинга в CSV файл с добавлением временной метки.
-
-    Args:
-        data (List[List[Union[int, str]]]): Список списков с данными о товарах [артикул (int), цена (int), название (str), рейтинг(str)]
-        counter (int): Порядковый номер файла.
-        user_id (int): ID пользователя Telegram.
-
-    Raises:
-        Exception: При возникновении любых ошибок ввода-вывода или обработки данных.
-
-    Returns:
-        None: Функция не возвращает значения, только создает файл.
-    """
-    try:
-        data.append([datetime.now().strftime('%d.%m.%Y %H:%M:%S')])
-        filename = f'elements_{user_id}_{counter}.csv'
-        with open(filename, 'w', newline='', encoding='utf-8') as file:
-            writer = csv.writer(file)
-            for element_id in data:
-                writer.writerow(element_id)
-    except Exception as e:
-        print(f"Ошибка сохранения в CSV для пользователя {user_id}: {e}")
-        raise
-
-
 def the_cheapest(data: list):
     """
     Находит товар с минимальной ценой.
@@ -224,7 +183,7 @@ def sorted_data(collected_data: list):
         collected_data (List[List[Union[int, str]]]): Первоначальный список, отсортированный по возрастанию первого элемента(артикула).
               В списке отсутствуют дублирующие строчки.
               Каждый внутренний список содержит: [артикул (int), цена (int), название (str), рейтинг (str)]
-    
+
     Raises:
         Exception: Ошибки при сортировке.
     """
@@ -244,6 +203,31 @@ def sorted_data(collected_data: list):
         print(f"Ошибка в сортировке файла: {e}")
         raise
 
+def save_to_csv(data: list, counter: int, user_id: int):
+    """
+    Сохраняет данные парсинга в CSV файл с добавлением временной метки.
+
+    Args:
+        data (List[List[Union[int, str]]]): Список списков с данными о товарах [артикул (int), цена (int), название (str), рейтинг(str)]
+        counter (int): Порядковый номер файла.
+        user_id (int): ID пользователя Telegram.
+
+    Raises:
+        Exception: При возникновении любых ошибок ввода-вывода или обработки данных.
+
+    Returns:
+        None: Функция не возвращает значения, только создает файл.
+    """
+    try:
+        data.append([datetime.now().strftime('%d.%m.%Y %H:%M:%S')])
+        filename = f'elements_{user_id}_{counter}.csv'
+        with open(filename, 'w', newline='', encoding='utf-8') as file:
+            writer = csv.writer(file)
+            for element_id in data:
+                writer.writerow(element_id)
+    except Exception as e:
+        print(f"Ошибка сохранения в CSV для пользователя {user_id}: {e}")
+        raise
 
 async def parsing_analysis(counter: int, bot: Bot, chat_id: int):
     """
@@ -254,7 +238,7 @@ async def parsing_analysis(counter: int, bot: Bot, chat_id: int):
         counter (int): Номер текущей итерации парсинга.
         bot (Bot): Экземпляр бота Telegram для отправки сообщений.
         chat_id (int): Идентификатор чата Telegram (user_id).
-    
+
     Returns:
         None: Функция не возвращает значения, только выводит пользователю информацию о изменениях.
 
@@ -320,7 +304,7 @@ async def parsing_analysis(counter: int, bot: Bot, chat_id: int):
         if differences:
             if new_items:
                 message_parts.append("\n*Новые товары:*")
-                message_parts.extend(new_items[:10])  
+                message_parts.extend(new_items[:10])
 
             if removed_items:
                 message_parts.append("\n*Удаленные товары:*")
@@ -412,19 +396,15 @@ async def start_parsing_task(user_id: int, category: str, interval_minutes: int,
         category (str): Категория товаров для парсинга.
         interval_minutes (int): Интервал между парсингами в минутах.
         bot (Bot): Экземпляр бота Telegram.
-    
+
     Returns:
         None: Функция не возвращает значения, только запускает задачу парсинга.
-    
+
     """
     counter = 0
 
     while True:
         try:
-            # Проверяем, есть ли еще задача в словаре (значит не была отменена)
-            if user_id not in parsing_tasks:
-                break
-
             try:
                 await bot.send_message(user_id, f'Начинаем парсинг категории "{category}"...')
             except Exception as e:
@@ -487,12 +467,7 @@ async def start_parsing_task(user_id: int, category: str, interval_minutes: int,
                     f"Ошибка отправки сообщения о завершении для пользователя {user_id}: {e}")
 
             try:
-                for _ in range(interval_minutes):
-                    # Проверяем каждую минуту, не отменили ли задачу
-                    if user_id not in parsing_tasks:
-                        await bot.send_message(user_id, "Парсинг остановлен.")
-                        return
-                    await asyncio.sleep(60)
+                await asyncio.sleep(60*interval_minutes)
             except asyncio.CancelledError:
                 raise
             except Exception as e:
@@ -522,6 +497,19 @@ router = Router()
 kb = create_keyboards()
 """Создание клавиатуры."""
 
+class Register(StatesGroup):
+    """
+    Класс состояний для машины состояний (FSM) бота.
+
+    Attributes:
+        name (State): Состояние ввода названия категории товаров.
+        time (State): Состояние ввода интервала парсинга в минутах.
+        article (State): Состояние ввода артикула товара для отслеживания истории цен.
+    """
+    name = State()
+    time = State()
+    article = State()
+
 @router.message(CommandStart())
 async def cmd_start(message: Message):
     """
@@ -531,7 +519,7 @@ async def cmd_start(message: Message):
     Args:
         message (Message): Объект входящего сообщения от пользователя Telegram.
             Содержит информацию о пользователе, чате и метаданные.
-            
+
     """
     try:
         await message.answer("Привет! Я бот для парсинга товаров с Wildberries.", reply_markup=kb)
@@ -626,28 +614,14 @@ async def parsing(message: Message, state: FSMContext):
             await message.answer("Пожалуйста, введите число (минуты). Попробуйте снова.")
             return
 
-        # Останавливаем предыдущую задачу, если она есть
-        if user_id in parsing_tasks:
-            task = parsing_tasks[user_id]
-            if not task.done():
-                task.cancel()
-                try:
-                    await task
-                except asyncio.CancelledError:
-                    pass
-            del parsing_tasks[user_id]
-            await message.answer("Предыдущий парсинг остановлен.")
-            await asyncio.sleep(1)
-
         await state.update_data(time=message.text)
         data = await state.get_data()
 
-        # Создаем новую задачу парсинга
         parsing_task = asyncio.create_task(
             start_parsing_task(user_id, data['name'], interval, message.bot)
         )
         parsing_tasks[user_id] = parsing_task
-        
+
         await message.answer(
             f'Вы подписались на категорию "{data["name"]}"\n'
             f'Обновления товаров будут проверяться каждые {data["time"]} минут.\n'
@@ -679,7 +653,7 @@ async def stop_parsing(message: Message):
                     await task
                 except asyncio.CancelledError:
                     pass
-            
+
             del parsing_tasks[user_id]
             await message.answer("Парсинг успешно остановлен!")
         else:
@@ -740,13 +714,13 @@ async def main():
     Основная функция запуска Telegram бота.
 
     Инициализирует компоненты бота, очищает глобальные состояния и запускает
-    обработку входящих сообщений через long-polling.
+    обработку входящих сообщений.
     """
     try:
         bot = Bot(token="8534686350:AAHSYTJLfjmakcMWBhoFSu8oR0RZiB2_EFU")
         dp = Dispatcher()
         dp.include_router(router)
-        parsing_tasks.clear()  # Очищаем глобальную переменную при старте
+        parsing_tasks.clear()  
         await dp.start_polling(bot)
     except Exception as e:
         print(f"Критическая ошибка в основном цикле бота: {e}")
